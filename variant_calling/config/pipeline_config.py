@@ -39,6 +39,39 @@ def luna_config(reference):
     return config
 
 
+def azure_config(reference):
+    pools = {'standard': None, 'highmem': None, 'multicore': None}
+
+    memory = {
+        'low': 5,
+        'med': 10,
+        'high': 15,
+    }
+
+    chromosomes = map(str, range(1, 23)) + ['X', 'Y']
+
+    threads = 1
+
+    if reference == 'grch37':
+        reference = "/refdata/GRCh37-lite.fa"
+    else:
+        reference = None
+
+    snpeff_params = {'snpeff_config': '/refdata/snpEff.config'}
+
+    mutation_assessor_params = {'db': '/refdata/MA.hg19_v2/'}
+
+    dbsnp_params = {'db': '/refdata/dbsnp_142.human_9606.all.vcf.gz'}
+
+    thousandgen_params = {'db': '/refdata/1000G_release_20130502_genotypes.vcf.gz'}
+
+    cosmic_params = {'db': '/refdata/CosmicMutantExport.sorted.vcf.gz'}
+
+    config = locals()
+
+    return config
+
+
 def shahlab_config(reference):
 
     pools = {}
@@ -78,6 +111,8 @@ def get_config(override):
         config = shahlab_config(override["reference"])
     elif override["cluster"] == "luna":
         config = luna_config(override["reference"])
+    elif override["cluster"] == "azure":
+        config = azure_config(override["reference"])
 
     return config
 
@@ -89,22 +124,29 @@ def write_config(params, filepath):
 
 def generate_pipeline_config(args):
 
-    config_yaml = "config.yaml"
-    tmpdir = args.get("tmpdir", None)
-    pipelinedir = args.get("pipelinedir", None)
-
-    # use pypeliner tmpdir to store yaml
-    if pipelinedir:
-        config_yaml = os.path.join(pipelinedir, config_yaml)
-    elif tmpdir:
-        config_yaml = os.path.join(tmpdir, config_yaml)
+    if args['which'] == 'generate_config':
+        config_yaml = args['pipeline_config']
+        config_yaml = os.path.abspath(config_yaml)
     else:
-        warnings.warn("no tmpdir specified, generating configs in working dir")
-        config_yaml = os.path.join(os.getcwd(), config_yaml)
+        config_yaml = "config.yaml"
+        tmpdir = args.get("tmpdir", None)
+        pipelinedir = args.get("pipelinedir", None)
 
-    config_yaml = helpers.get_incrementing_filename(config_yaml)
+        # use pypeliner tmpdir to store yaml
+        if pipelinedir:
+            config_yaml = os.path.join(pipelinedir, config_yaml)
+        elif tmpdir:
+            config_yaml = os.path.join(tmpdir, config_yaml)
+        else:
+            warnings.warn("no tmpdir specified, generating configs in working dir")
+            config_yaml = os.path.join(os.getcwd(), config_yaml)
 
-    params_override = args["config_override"]
+        config_yaml = helpers.get_incrementing_filename(config_yaml)
+    print config_yaml
+
+    params_override = {'cluster': 'azure', 'reference': 'grch37'}
+    if args['config_override']:
+        params_override.update(args["config_override"])
 
     helpers.makedirs(config_yaml, isfile=True)
 
@@ -113,5 +155,6 @@ def generate_pipeline_config(args):
 
     args["config_file"] = config_yaml
 
+    print config_yaml
     return args
 

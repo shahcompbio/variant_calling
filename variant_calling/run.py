@@ -3,38 +3,118 @@ Created on Feb 19, 2018
 
 @author: dgrewal
 """
-
+import os
 import pypeliner
+import pypeliner.managed as mgd
 from cmdline import parse_args
-from single_cell.config import pipeline_config
-from single_cell.config import batch_config
-
+from variant_calling.config import pipeline_config
+from variant_calling.config import batch_config
+from variant_calling.utils import helpers
+from variant_calling.workflows import mutationseq
+from variant_calling.workflows import strelka
 
 def generate_config(args):
-    config_yaml = args.get("pipeline_config")
-    batch_yaml = args.get("batch_config")
+    if args['which'] == 'generate_config':
+        if args.get("pipeline_config"):
+            args = pipeline_config.generate_pipeline_config(args)
+        if args.get("batch_config"):
+            args = batch_config.generate_pipeline_config(args)
+    else:
+        if not args.get("config_file"):
+            args = pipeline_config.generate_pipeline_config(args)
+        if not args.get("submit_config"):
+            args = batch_config.generate_batch_config(args)
+    return args
 
-    if config_yaml:
-        pipeline_config.generate_pipeline_config(args)
 
-    if batch_yaml:
-        batch_config.generate_pipeline_config(args)
+def variant_calling_workflow(args):
+    pyp = pypeliner.app.Pypeline(config=args)
+    workflow = pypeliner.workflow.Workflow()
 
-def variant_calling_workflow(workflow, args):
+    args = generate_config(args)
+    config = helpers.load_yaml(args['config_file'])
+    inputs = helpers.load_yaml(args['input_yaml'])
+    output_dir = os.path.join(args['out_dir'], '{sample_id}')
 
-    raise NotImplementedError()
+    ## TODO: for now assume both normals and tumours exist
+    samples = inputs.keys()
+    tumours = {sample: inputs[sample]['tumour'] for sample in samples}
+    normals = {sample: inputs[sample]['normal'] for sample in samples}
 
 
-if __name__ == "__main__":
+    workflow.setobj(
+        obj=mgd.OutputChunks('sample_id'),
+        value=samples)
 
+
+    museqportrait_pdf = os.path.join(output_dir, 'paired_museqportrait.pdf')
+    museqportrait_txt = os.path.join(output_dir, 'paired_museqportrait.txt')
+    workflow.subworkflow(
+        name="mutationseq_paired",
+        func=mutationseq.create_museq_workflow,
+        axes=('sample_id',),
+        args=(
+            mgd.TempOutputFile("museq_snv.vcf", 'sample_id'),
+            mgd.OutputFile(museqportrait_pdf, 'sample_id'),
+            mgd.OutputFile(museqportrait_txt, 'sample_id'),
+            config
+        ),
+        kwargs={
+            'tumour_bam': mgd.InputFile("tumour.bam", 'sample_id', fnames=tumours,
+                                        extensions=['.bai'], axes_origin=[]),
+            'normal_bam': mgd.InputFile("normal.bam", 'sample_id', fnames=normals,
+                                        extensions=['.bai'], axes_origin=[]),
+        }
+    )
+
+    museqportrait_pdf = os.path.join(output_dir, 'single_museqportrait.pdf')
+    museqportrait_txt = os.path.join(output_dir, 'single_museqportrait.txt')
+    workflow.subworkflow(
+        name="mutationseq_single",
+        func=mutationseq.create_museq_workflow,
+        axes=('sample_id',),
+        args=(
+            mgd.TempOutputFile("museq_germlines.vcf", 'sample_id'),
+            mgd.OutputFile(museqportrait_pdf, 'sample_id'),
+            mgd.OutputFile(museqportrait_txt, 'sample_id'),
+            config
+        ),
+        kwargs={
+            'tumour_bam': None,
+            'normal_bam': mgd.InputFile("normal.bam", 'sample_id', fnames=normals,
+                                        extensions=['.bai'], axes_origin=[]),
+        }
+    )
+
+    workflow.subworkflow(
+        name="strelka",
+        func=strelka.create_strelka_workflow,
+        axes=('sample_id',),
+        args=(
+            mgd.InputFile('normal_bam', 'sample_id', fnames=normals, extensions=['.bai']),
+            mgd.InputFile('tumour_bam', 'sample_id', fnames=tumours, extensions=['.bai']),
+            config['reference'],
+            mgd.TempOutputFile('strelka_indel.vcf', 'sample_id'),
+            mgd.TempOutputFile('strelka_snv.vcf', 'sample_id'),
+            config,
+        ),
+    )
+
+
+
+    pyp.run(workflow)
+
+
+
+def main():
     args = parse_args()
 
     if args["which"] == "generate_config":
         generate_config(args)
 
     if args["which"] == "run":
-        pyp = pypeliner.app.Pypeline(config=args)
-        workflow = pypeliner.workflow.Workflow()
-        workflow = variant_calling_workflow(workflow, args)
-        pyp.run(workflow)
+        variant_calling_workflow(args)
 
+
+if __name__ == "__main__":
+    main()

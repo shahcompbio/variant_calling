@@ -15,9 +15,7 @@ import os
 
 def create_strelka_workflow(
         normal_bam,
-        normal_bai,
         tumour_bam,
-        tumour_bai,
         ref_genome_fasta_file,
         indel_vcf_file,
         snv_vcf_file,
@@ -34,7 +32,7 @@ def create_strelka_workflow(
         ctx={'mem': config['memory']['low'], 'pool_id': config['pools']['standard'], 'ncpus': 1, 'walltime': '01:00'},
         ret=mgd.OutputChunks('interval'),
         args=(
-            config['reference_genome'],
+            config['reference'],
             config['chromosomes']
         )
     )
@@ -71,10 +69,8 @@ def create_strelka_workflow(
         axes=('interval',),
         func=tasks.call_somatic_variants,
         args=(
-            mgd.InputFile(normal_bam),
-            mgd.InputFile(normal_bai),
-            mgd.InputFile(tumour_bam),
-            mgd.InputFile(tumour_bai),
+            mgd.InputFile(normal_bam, extensions=['.bai']),
+            mgd.InputFile(tumour_bam, extensions=['.bai']),
             mgd.TempInputObj('known_sizes'),
             ref_genome_fasta_file,
             mgd.TempOutputFile('somatic.indels.unfiltered.vcf', 'interval'),
@@ -82,9 +78,7 @@ def create_strelka_workflow(
             mgd.TempOutputFile('somatic.snvs.unfiltered.vcf', 'interval'),
             mgd.TempOutputFile('strelka.stats', 'interval'),
             mgd.InputInstance('interval'),
-            config,
         ),
-        kwargs={'ncores': config['max_cores']},
     )
 
     workflow.transform(
@@ -222,18 +216,3 @@ def get_coords(bam_file, chrom, split_size):
     return coords
 
 
-def get_known_chromosome_sizes(bam_file, bai_file, size_file, chromosomes):
-    chromosomes = _get_chromosomes(bam_file, chromosomes)
-
-    sizes = {}
-
-    with open(size_file, 'r') as fh:
-        reader = csv.DictReader(fh, ['path', 'chrom', 'known_size', 'size'], delimiter='\t')
-
-        for row in reader:
-            if row['chrom'] not in chromosomes:
-                continue
-
-            sizes[row['chrom']] = int(row['known_size'])
-
-    return sizes

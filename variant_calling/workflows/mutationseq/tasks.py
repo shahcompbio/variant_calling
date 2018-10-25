@@ -7,7 +7,7 @@ import os
 import pysam
 import pypeliner
 import multiprocessing
-from pypeliner_utils import helpers, vcfutils
+from variant_calling.utils import helpers, vcfutils
 
 
 scripts_directory = os.path.join(
@@ -29,8 +29,8 @@ def generate_intervals(ref, chromosomes, size=1000000):
 
     return intervals
 
-def run_museq(out, log, config, interval, tumour_bam=None, tumour_bai=None,
-              normal_bam=None, normal_bai=None):
+def run_museq(out, log, config, interval, tumour_bam=None,
+              normal_bam=None):
     '''
     Run museq script for all chromosomes and merge VCF files
 
@@ -40,13 +40,10 @@ def run_museq(out, log, config, interval, tumour_bam=None, tumour_bai=None,
     :param log: path to the log file
     :param config: path to the config YAML file
     '''
-    script = os.path.join(config['museq_params']['mutationseq'], 'classify.py')
-    conf = os.path.join(
-        config['museq_params']['mutationseq'], 'metadata.config')
-    model = config['museq_params']['mutationseq_model']
-    reference = config['museq_params']['reference_genome']
 
-    cmd = ['python', script]
+    reference = config['reference']
+
+    cmd = ['museq']
 
     if tumour_bam:
         cmd.append('tumour:' + tumour_bam)
@@ -54,10 +51,10 @@ def run_museq(out, log, config, interval, tumour_bam=None, tumour_bai=None,
         cmd.append('normal:' + normal_bam)
 
     interval = interval.split('_')
-    interval = interval[0] +':'+ interval[1] + '-' + interval[2]
+    interval = interval[0] + ':' + interval[1] + '-' + interval[2]
 
-    cmd.extend(['reference:' + reference, 'model:' + model, '--out', out,
-                '--log', log, '--config', conf, '--interval', interval, '-v'])
+    cmd.extend(['reference:' + reference, '--out', out,
+                '--log', log, '--interval', interval, '-v'])
 
     pypeliner.commandline.execute(*cmd)
 
