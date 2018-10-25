@@ -6,6 +6,7 @@ Created on Feb 21, 2018
 import pypeliner
 import pypeliner.managed as mgd
 import tasks
+from variant_calling.utils import vcf_tasks
 
 
 def create_museq_workflow(
@@ -13,10 +14,11 @@ def create_museq_workflow(
         museqportrait_pdf,
         museqportrait_txt,
         config,
+        sample_id,
         tumour_bam=None,
-        tumour_bai=None,
-        normal_bam=None,
-        normal_bai=None):
+        normal_bam=None):
+
+    single = False if tumour_bam and normal_bam else True
 
     workflow = pypeliner.workflow.Workflow()
 
@@ -26,7 +28,7 @@ def create_museq_workflow(
         ctx={'mem': config['memory']['low'], 'pool_id': config['pools']['standard'], 'ncpus': 1, 'walltime': '01:00'},
         ret=mgd.OutputChunks('interval'),
         args=(
-            config['museq_params']['reference_genome'],
+            config['reference'],
             config['chromosomes']
         )
     )
@@ -49,8 +51,7 @@ def create_museq_workflow(
                 mgd.InputInstance('interval')
             ),
             kwargs={
-                'tumour_bam': mgd.InputFile(tumour_bam),
-                'tumour_bai': mgd.InputFile(tumour_bai),
+                'tumour_bam': mgd.InputFile(tumour_bam, extensions=['.bai']),
             }
         )
     elif not tumour_bam and normal_bam:
@@ -71,8 +72,7 @@ def create_museq_workflow(
                 mgd.InputInstance('interval')
             ),
             kwargs={
-                'normal_bam': mgd.InputFile(normal_bam),
-                'normal_bai': mgd.InputFile(normal_bai),
+                'normal_bam': mgd.InputFile(normal_bam, extensions=['.bai']),
             }
         )
     else:
@@ -93,10 +93,8 @@ def create_museq_workflow(
                 mgd.InputInstance('interval')
             ),
             kwargs={
-                'tumour_bam': mgd.InputFile(tumour_bam),
-                'tumour_bai': mgd.InputFile(tumour_bai),
-                'normal_bam': mgd.InputFile(normal_bam),
-                'normal_bai': mgd.InputFile(normal_bai),
+                'tumour_bam': mgd.InputFile(tumour_bam, extensions=['.bai']),
+                'normal_bam': mgd.InputFile(normal_bam, extensions=['.bai']),
             }
         )
 
@@ -110,8 +108,20 @@ def create_museq_workflow(
         func=tasks.merge_vcfs,
         args=(
             mgd.TempInputFile('museq.vcf', 'interval'),
-            mgd.TempOutputFile(snv_vcf),
+            mgd.TempOutputFile('merged.vcf'),
+            mgd.TempSpace('merge_vcf'),
         )
+    )
+
+
+    workflow.transform(
+        name='finalise_snvs',
+        ctx={'pool_id': config['pools']['standard'], 'ncpus': 1, 'walltime': '01:00'},
+        func=vcf_tasks.finalise_vcf,
+        args=(
+            mgd.TempInputFile('merged.vcf'),
+            mgd.OutputFile(snv_vcf),
+        ),
     )
 
     workflow.transform(
@@ -126,8 +136,10 @@ def create_museq_workflow(
             mgd.OutputFile(museqportrait_pdf),
             mgd.OutputFile(museqportrait_txt),
             mgd.TempOutputFile('museqportrait.log'),
+            single,
+            config,
+            sample_id
         ),
     )
-
 
     return workflow

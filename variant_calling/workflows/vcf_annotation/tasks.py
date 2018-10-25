@@ -21,8 +21,11 @@ def run_snpeff(infile, output, config):
     snpeff_config = config['snpeff_params']['snpeff_config']
 
     cmd = ['snpEff', '-Xmx5G', '-Xms5G', '-XX:ParallelGCThreads=1',
-           '-c', snpeff_config, 'GRCh37.75', '-noStats', infile, '>',
+           'GRCh37.75', '-noStats', infile, '>',
            output]
+
+    if snpeff_config:
+        cmd.extend(['-c', snpeff_config])
 
     pypeliner.commandline.execute(*cmd)
 
@@ -71,7 +74,7 @@ def run_1000gen(infile, output, config):
     '''
 
     script = os.path.join(scripts_directory, 'flagPos.py')
-    db = config['1000gen_params']['db']
+    db = config['thousandgen_params']['db']
 
     cmd = ['python', script, '--infile', infile, '--db', db, '--out', output,
            '--label', '1000Gen', '--input_type', 'snv']
@@ -96,7 +99,7 @@ def run_cosmic(infile, output, config):
 
     pypeliner.commandline.execute(*cmd)
 
-def finalize_vcf(infile, outfile):
+def finalize_vcf(infile, outfile, config):
 
      raise NotImplementedError()
 

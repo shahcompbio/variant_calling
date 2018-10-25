@@ -6,6 +6,7 @@ Created on Feb 21, 2018
 import pypeliner
 import pypeliner.managed as mgd
 import tasks
+from variant_calling.utils import vcf_tasks
 
 
 def create_annotation_workflow(
@@ -91,11 +92,10 @@ def create_annotation_workflow(
             'mem': config['memory']['high'],
             'pool_id': config['pools']['highmem'],
             'ncpus': 1, 'walltime': '08:00'},
-        func=tasks.finalize_vcf,
+        func=vcf_tasks.finalise_vcf,
         args=(
             mgd.TempInputFile('museq_cosmic.vcf'),
             mgd.OutputFile(annotated_vcf, extensions=['.csi','.tbi']),
-            config,
         ),
     )
 

@@ -5,25 +5,14 @@ Created on Nov 1, 2015
 '''
 from __future__ import division
 
-from collections import OrderedDict
-import subprocess
-
-from scripts import ParseStrelka
 import os
 import csv
-import ConfigParser
 import math
 import pandas as pd
 import pypeliner
 import re
 import vcf
-import vcf_tasks
 import pysam
-
-import multiprocessing
-from strelkautils import default_chromosomes
-from pypeliner_utils import helpers
-
 
 FILTER_ID_BASE = 'BCNoise'
 FILTER_ID_DEPTH = 'DP'
@@ -50,7 +39,6 @@ def generate_intervals(ref, chromosomes, size=100000000):
         for i in range(int((length/size)+1)):
             intervals.append( name+ "_" + str(i*size) +"_"+ str((i+1)*size))
 
-    print(intervals)
     return intervals
 
 
@@ -96,78 +84,9 @@ def count_fasta_bases(ref_genome_fasta_file, out_file):
     pypeliner.commandline.execute(*cmd)
 
 
-def _somatic_variant_call_worker(normal_bam_file, tumour_bam_file, ref_genome,
-                                 indel_file, snv_file, indel_window_file, stats_file,
-                                interval, known_chrom_sizes, max_input_depth,
-                                min_tier_one_mapq, min_tier_two_mapq,
-                                sindel_noise, sindel_prior,
-                                ssnv_noise, ssnv_noise_strand_bias_frac,
-                                ssnv_prior):
-
-    chrom,beg,end = interval.split('_')
-
-    known_chrom_sizes = known_chrom_sizes[chrom]
-
-    beg = int(beg)
-    beg = beg+1 if beg==0 else beg
-    end = int(end)
-
-
-    cmd = [
-        'strelka2',
-        '-bam-file', normal_bam_file,
-        '--tumor-bam-file', tumour_bam_file,
-
-        '-samtools-reference', ref_genome,
-
-        '--somatic-indel-file', indel_file,
-        '--somatic-snv-file', snv_file,
-        '--variant-window-flank-file', 50, indel_window_file,
-
-        '-bam-seq-name', chrom,
-        '-report-range-begin', beg,
-        '-report-range-end', end,
-
-        '-clobber',
-        '-filter-unanchored',
-        '-genome-size', known_chrom_sizes,
-        '-indel-nonsite-match-prob', 0.5,
-        '-max-indel-size', 50,
-        '-max-window-mismatch', 3, 20,
-        '-min-paired-align-score', min_tier_one_mapq,
-        '-min-single-align-score', 10,
-        '-min-qscore', 0,
-        '-print-used-allele-counts',
-
-        '--max-input-depth', max_input_depth,
-        '--min-contig-open-end-support', 35,
-        '--report-file', stats_file,
-        '--shared-site-error-rate', ssnv_noise,
-
-        '--shared-site-error-strand-bias-fraction', ssnv_noise_strand_bias_frac,
-        '--somatic-indel-rate', sindel_prior,
-        '--shared-indel-error-rate', sindel_noise,
-        '--somatic-snv-rate', ssnv_prior,
-        '--tier2-include-anomalous',
-        '--tier2-include-singleton',
-        '--tier2-indel-nonsite-match-prob', 0.25,
-        '--tier2-min-paired-align-score', min_tier_two_mapq,
-        '--tier2-min-single-align-score', min_tier_two_mapq,
-        '--tier2-mismatch-density-filter-count', 10,
-        '--tier2-no-filter-unanchored',
-        '--tier2-single-align-score-rescue-mode'
-    ]
-
-    cmd = map(str,cmd)
-    helpers.run_cmd(cmd)
-    # subprocess.call(cmd)
-
-
 def call_somatic_variants(
         normal_bam_file,
-        normal_bai_file,
         tumour_bam_file,
-        tumour_bai_file,
         known_sizes,
         ref_genome,
         indel_file,
@@ -175,8 +94,6 @@ def call_somatic_variants(
         snv_file,
         stats_file,
         interval,
-        config,
-        ncores=None,
         max_input_depth=10000,
         min_tier_one_mapq=20,
         min_tier_two_mapq=5,
@@ -186,31 +103,24 @@ def call_somatic_variants(
         ssnv_noise_strand_bias_frac=0.5,
         ssnv_prior=0.000001):
 
-
-    chrom,beg,end = interval.split('_')
+    chrom, beg, end = interval.split('_')
 
     known_chrom_sizes = known_sizes[chrom]
-
     beg = int(beg)
-    beg = beg+1 if beg==0 else beg
+    beg = beg+1 if beg == 0 else beg
     end = int(end)
-
 
     cmd = [
         'strelka2',
         '-bam-file', normal_bam_file,
         '--tumor-bam-file', tumour_bam_file,
-
         '-samtools-reference', ref_genome,
-
         '--somatic-indel-file', indel_file,
         '--somatic-snv-file', snv_file,
         '--variant-window-flank-file', 50, indel_window_file,
-
         '-bam-seq-name', chrom,
         '-report-range-begin', beg,
         '-report-range-end', end,
-
         '-clobber',
         '-filter-unanchored',
         '-genome-size', known_chrom_sizes,
@@ -221,12 +131,10 @@ def call_somatic_variants(
         '-min-single-align-score', 10,
         '-min-qscore', 0,
         '-print-used-allele-counts',
-
         '--max-input-depth', max_input_depth,
         '--min-contig-open-end-support', 35,
         '--report-file', stats_file,
         '--shared-site-error-rate', ssnv_noise,
-
         '--shared-site-error-strand-bias-fraction', ssnv_noise_strand_bias_frac,
         '--somatic-indel-rate', sindel_prior,
         '--shared-indel-error-rate', sindel_noise,
@@ -339,7 +247,8 @@ def filter_snv_file_list(
 
                 writer.write_record(record)
 
-        writer.close()
+        if writer:
+            writer.close()
 
 
 def _get_max_normal_coverage(chrom, depth_filter_multiple, known_chrom_size, stats_files):
@@ -577,7 +486,8 @@ def filter_indel_file_list(
 
                 writer.write_record(record)
 
-        writer.close()
+        if writer:
+            writer.close()
 
 
 def _convert_dict_to_call(data_dict):

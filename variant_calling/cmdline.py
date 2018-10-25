@@ -4,17 +4,9 @@ Created on Feb 19, 2018
 @author: dgrewal
 '''
 import argparse
-import pypeliner
-import os
-import sys
 import json
-
-from single_cell.utils import helpers
-
-
-from single_cell.config import generate_batch_config
-from single_cell.config import generate_pipeline_config
-from single_cell import __version__
+import pypeliner
+from variant_calling import __version__
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -46,6 +38,8 @@ def parse_args():
                                 type=json.loads,
                                 help='''json string to override the defaults in config''')
 
+    pypeliner.app.add_arguments(variant_calling)
+
 
     #======================================
     # generates pipeline and batch configs
@@ -65,10 +59,5 @@ def parse_args():
 
 
     args = vars(parser.parse_args())
-
-    # add config paths to global args if needed.
-    args = generate_pipeline_config.generate_pipeline_config_in_temp(args)
-
-    args = generate_batch_config.generate_submit_config_in_temp(args)
 
     return args

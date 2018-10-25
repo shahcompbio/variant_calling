@@ -3,13 +3,13 @@ import versioneer
 
 
 setup(
-    name='single_cell',
+    name='variant_calling',
     packages=find_packages(),
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
-    description='Single cell pipeline',
-    author='Andrew McPherson',
-    author_email='andrew.mcpherson@gmail.com',
-    entry_points={'console_scripts': ['single_cell = single_cell.run:main']},
+    description='variant_calling',
+    author='Diljot Grewal',
+    author_email='diljot.grewal@gmail.com',
+    entry_points={'console_scripts': ['variant_calling = variant_calling.run:main']},
     package_data={'':['scripts/*.py', 'scripts/*.R', 'scripts/*.npz', "config/*.yaml", "data/*"]}
 )
