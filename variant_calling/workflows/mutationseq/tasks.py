@@ -75,3 +75,14 @@ def run_museqportrait(infile, out_pdf, out_txt, museqportrait_log):
            out_pdf, '--output-txt', out_txt, infile]
 
     pypeliner.commandline.execute(*cmd)
+
+def filter_museq_vcf(infile, output):
+    cmd = ['', '--infile', infile, '--output', output]
+
+    pypeliner.commandline.execute(*cmd)
+
+
+def convert_vcf_to_maf(infile, output):
+    cmd = ['', '--infile', infile, '--output', output]
+
+    pypeliner.commandline.execute(*cmd)

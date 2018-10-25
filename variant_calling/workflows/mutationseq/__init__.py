@@ -10,6 +10,8 @@ import tasks
 
 def create_museq_workflow(
         snv_vcf,
+        snv_filtered_vcf,
+        snv_maf,
         museqportrait_pdf,
         museqportrait_txt,
         config,
@@ -120,6 +122,34 @@ def create_museq_workflow(
             mgd.OutputFile(museqportrait_pdf),
             mgd.OutputFile(museqportrait_txt),
             mgd.TempOutputFile('museqportrait.log'),
+        ),
+    )
+
+    workflow.transform(
+        name='filter_museq_vcf', 
+        ctx={
+            'mem': config['memory']['low'], 
+            'pool_id': config['pools']['standard'], 
+            'ncpus': 1},
+        func=tasks.filter_museq_vcf, 
+        args=(
+            mgd.InputFile(snv_vcf),  
+            mgd.OutputFile(snv_filtered_vcf), 
+            config,
+        ),
+    )
+
+    workflow.transform(
+        name='convert_vcf_to_maf', 
+        ctx={
+            'mem': config['memory']['low'], 
+            'pool_id': config['pools']['standard'], 
+            'ncpus': 1},
+        func=tasks.convert_vcf_to_maf, 
+        args=(
+            mgd.InputFile(snv_filtered_vcf), 
+            mgd.OutputFile(snv_maf), 
+            config,
         ),
     )
 
