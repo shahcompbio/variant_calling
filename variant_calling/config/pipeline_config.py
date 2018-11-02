@@ -80,9 +80,9 @@ def azure_config(reference):
     mappability_ref = '/datadrive/refdata/mask_regions_blacklist_crg_align36_table.txt'
 
     parse_strelka = {
-        'label_mapping': '/datadrive/refdata/annotations.csv',
         'keep_1000gen': True,
-        'keep_cosmic': True,
+        ## TODO: why is this missing
+        # 'keep_cosmic': True,
         'remove_duplicates': False,
         'keep_dbsnp': True,
         'chromosomes': map(str, range(23)) + ['X'],
@@ -90,7 +90,6 @@ def azure_config(reference):
      }
 
     parse_museq = {
-        'label_mapping': '/datadrive/refdata/annotations.csv',
         'keep_1000gen': True,
         'keep_cosmic': True,
         'remove_duplicates': False,

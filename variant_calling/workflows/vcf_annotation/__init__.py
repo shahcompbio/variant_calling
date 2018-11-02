@@ -95,7 +95,7 @@ def create_annotation_workflow(
         func=vcf_tasks.finalise_vcf,
         args=(
             mgd.TempInputFile('museq_cosmic.vcf'),
-            mgd.OutputFile(annotated_vcf, extensions=['.csi','.tbi']),
+            mgd.OutputFile(annotated_vcf),
         ),
     )
 

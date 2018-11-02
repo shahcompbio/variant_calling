@@ -38,15 +38,16 @@ def variant_calling_workflow(args):
     inputs = helpers.load_yaml(args['input_yaml'])
     output_dir = os.path.join(args['out_dir'], '{sample_id}')
 
-    ## TODO: for now assume both normals and tumours exist
     samples = inputs.keys()
     tumours = {sample: inputs[sample]['tumour'] for sample in samples}
     normals = {sample: inputs[sample]['normal'] for sample in samples}
 
     museq_vcf = os.path.join(output_dir, '{sample_id}', 'museq_paired_annotated.vcf')
-    museqss_vcf = os.path.join(output_dir, '{sample_id}', 'museq_single_annotated.vcf')
-    strelka_vcf = os.path.join(output_dir, '{sample_id}', 'strelka_annotated.vcf')
+    museq_ss_vcf = os.path.join(output_dir, '{sample_id}', 'museq_single_annotated.vcf')
+    strelka_snv_vcf = os.path.join(output_dir, '{sample_id}', 'strelka_snv_annotated.vcf')
+    strelka_indel_vcf = os.path.join(output_dir, '{sample_id}', 'strelka_indel_annotated.vcf')
 
+    parsed_csv = os.path.join(output_dir, '{sample_id}', 'allcalls.csv')
 
     workflow.setobj(
         obj=mgd.OutputChunks('sample_id'),
@@ -114,7 +115,8 @@ def variant_calling_workflow(args):
         axes=('sample_id',),
         args=(
             mgd.TempInputFile("museq_snv.vcf.gz", 'sample_id'),
-            mgd.TempOutputFile('museq_snv_ann.vcf.gz', 'sample_id'),#, template=museq_vcf),
+            mgd.OutputFile('museq_snv_ann.vcf.gz', 'sample_id',
+                               extensions=['.csi','.tbi'], template=museq_vcf),
             config,
         ),
     )
@@ -125,7 +127,8 @@ def variant_calling_workflow(args):
         axes=('sample_id',),
         args=(
             mgd.TempInputFile("museq_germlines.vcf.gz", 'sample_id'),
-            mgd.TempOutputFile('museq_germlines_ann.vcf.gz', 'sample_id'),#, template=museq_vcf),
+            mgd.OutputFile('museq_germlines_ann.vcf.gz', 'sample_id',
+                               extensions=['.csi','.tbi'], template=museq_ss_vcf),
             config,
         ),
     )
@@ -136,7 +139,8 @@ def variant_calling_workflow(args):
         axes=('sample_id',),
         args=(
             mgd.TempInputFile("strelka_snv.vcf.gz", 'sample_id'),
-            mgd.TempOutputFile('strelka_snv_ann.vcf.gz', 'sample_id'),#, template=museq_vcf),
+            mgd.OutputFile('strelka_snv_ann.vcf.gz', 'sample_id',
+                               extensions=['.csi','.tbi'], template=strelka_snv_vcf),
             config,
         ),
     )
@@ -147,7 +151,8 @@ def variant_calling_workflow(args):
         axes=('sample_id',),
         args=(
             mgd.TempInputFile("strelka_indel.vcf.gz", 'sample_id'),
-            mgd.TempOutputFile('strelka_indel_ann.vcf.gz', 'sample_id'),#, template=museq_vcf),
+            mgd.OutputFile('strelka_indel_ann.vcf.gz', 'sample_id',
+                               extensions=['.csi','.tbi'], template=strelka_indel_vcf),
             config,
         ),
     )
@@ -158,16 +163,14 @@ def variant_calling_workflow(args):
         func=consensus_calling.create_consensus_workflow,
         axes=('sample_id',),
         args=(
-            mgd.TempInputFile("museq_germlines_ann.vcf.gz", 'sample_id'),
-            mgd.TempInputFile("museq_snv_ann.vcf.gz", 'sample_id'),
-            mgd.TempInputFile("strelka_snv_ann.vcf.gz", 'sample_id'),
-            mgd.TempInputFile("strelka_indel_ann.vcf.gz", 'sample_id'),
-            mgd.OutputFile("temp.csv"),
+            mgd.InputFile("museq_germlines_ann.vcf.gz", 'sample_id', template=museq_ss_vcf),
+            mgd.InputFile("museq_snv_ann.vcf.gz", 'sample_id', template=museq_vcf),
+            mgd.InputFile("strelka_snv_ann.vcf.gz", 'sample_id', template=strelka_snv_vcf),
+            mgd.InputFile("strelka_indel_ann.vcf.gz", 'sample_id', template=strelka_indel_vcf),
+            mgd.OutputFile(parsed_csv, 'sample_id'),
             config,
         ),
     )
-
-
 
     pyp.run(workflow)
 

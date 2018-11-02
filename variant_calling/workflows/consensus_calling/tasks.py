@@ -14,9 +14,13 @@ def parse_museq(infile, output, low_map_filt_output, config):
            '--output', low_map_filt_output]
 
     for key, val in config.iteritems():
-        if isinstance(val, bool) and val:
-            cmd.append('--{}'.format(key))
+        if isinstance(val, bool):
+            if val:
+                cmd.append('--{}'.format(key))
         else:
+            if isinstance(val, list):
+                val = ' '.join(val)
+
             cmd.extend(['--{}'.format(key), val])
 
     pypeliner.commandline.execute(*cmd)
@@ -28,9 +32,12 @@ def parse_strelka(infile, output, low_map_filt_output, config):
            '--output', low_map_filt_output,]
 
     for key, val in config.iteritems():
-        if isinstance(val, bool) and val:
-            cmd.append('--{}'.format(key))
+        if isinstance(val, bool):
+            if val:
+                cmd.append('--{}'.format(key))
         else:
+            if isinstance(val, list):
+                val = ' '.join(val)
             cmd.extend(['--{}'.format(key), val])
 
     pypeliner.commandline.execute(*cmd)
