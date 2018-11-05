@@ -103,9 +103,6 @@ def finalise_vcf(in_file, compressed_file):
     :param out_file: Path where compressed file will be written. Index file will written to `out_file` + `.tbi` and `out_file` + `.csi` and .
 
     """
-
-    print in_file,compressed_file
-
     uncompressed_file = compressed_file + '.uncompressed'
     pypeliner.commandline.execute('vcf-sort', in_file, '>', uncompressed_file)
     pypeliner.commandline.execute('bgzip', uncompressed_file, '-c', '>', compressed_file)

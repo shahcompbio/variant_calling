@@ -53,7 +53,6 @@ def variant_calling_workflow(args):
         obj=mgd.OutputChunks('sample_id'),
         value=samples)
 
-
     museqportrait_pdf = os.path.join(output_dir, 'paired_museqportrait.pdf')
     museqportrait_txt = os.path.join(output_dir, 'paired_museqportrait.txt')
     workflow.subworkflow(
@@ -156,7 +155,6 @@ def variant_calling_workflow(args):
             config,
         ),
     )
-
 
     workflow.subworkflow(
         name="consensus_calling",
